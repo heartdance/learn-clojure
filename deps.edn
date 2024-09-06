@@ -1,0 +1,15 @@
+{:deps
+ {
+  org.clojure/clojure                       {:mvn/version "1.11.2"}
+  com.mysql/mysql-connector-j               {:mvn/version "9.0.0"}
+  io.github.camsaul/toucan2                 {:mvn/version "1.0.538"}
+  compojure/compojure                       {:mvn/version "1.7.1"               ; HTTP Routing library built on Ring
+                                             :exclusions  [ring/ring-codec]}
+  org.eclipse.jetty/jetty-server            {:mvn/version "11.0.20" #_"must be 11"} ; web server
+  org.eclipse.jetty.websocket/websocket-jetty-server {:mvn/version "11.0.20"}   ; ring-jetty-adapter needs that
+  ring/ring-core                            {:mvn/version "1.12.0"}             ; HTTP abstraction
+  ring/ring-jetty-adapter                   {:mvn/version "1.12.0"              ; Jetty adapter
+                                             :exclusions [org.eclipse.jetty/jetty-server
+                                                          org.eclipse.jetty.websocket/websocket-jetty-server]}
+  }
+ }
