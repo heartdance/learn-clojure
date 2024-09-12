@@ -9,7 +9,7 @@
   {:dbtype   "mysql",
    :dbname   "test"
    :host     "localhost"
-   :post     3306
+   :port     3306
    :user     "test"
    :password "111111"})
 
