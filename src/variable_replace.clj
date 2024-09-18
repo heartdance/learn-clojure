@@ -8,28 +8,27 @@
   {:dbtype   "mysql",
    :dbname   "test"
    :host     "localhost"
-   :port     3306
+   :port     "3306"
    :user     "test"
    :password "111111"})
 
 (def variable-map (atom {}))
-
-(t2/table-name :model/tb_set_search_variable_values)
-(t2/table-name :model/sys_params)
+(def variable-list (atom []))
 
 (defn- list-variables [count]
   (binding [toucan2.honeysql2/*options* (assoc toucan2.honeysql2/*options*
                                           :dialect :mysql)]
     (t2/select :conn db-spec
-               :model/tb_set_search_variable_values
-               {:where [:or [:= :count nil] [:<= :count count]]})))
+               "tb_set_search_variable_values"
+               {:where [:or [:= :count nil] [:<= :count count]]
+                :order-by [[:name :asc]]})))
 
 (defn- get-variable-version []
   (binding [toucan2.honeysql2/*options* (assoc toucan2.honeysql2/*options*
                                           :dialect :mysql)]
-    (t2/select-one :conn db-spec :model/sys_params {:select [:params]
-                                                    :order-by [[:user_id :asc]]
-                                                    :limit 1})))
+    (t2/select-one :conn db-spec "sys_params" {:select [:params]
+                                               :order-by [[:user_id :asc]]
+                                               :limit 1})))
 
 (defn- type-name [type]
   (cond
@@ -93,14 +92,6 @@
         )
       )
 
-    (= type :regex)
-    (let [values (split-value value)]
-      (if (= (count values) 1)
-        (str "'" value "'")
-        (str "(" (str/join "," (map #(str "'" % "'") values)) ")")
-        )
-      )
-
     :else
     value
     )
@@ -113,13 +104,16 @@
        (map (fn [{:keys [name type value convert_value]}]
               {:name name
                :type (type-name type)
-               :value (variable-value (type-name type) (if (= type 4) convert_value value))}))
-       ((fn [variables] (reduce
-                          (fn [map {:keys [name type value]}]
-                            (assoc map name {:type type :value value}))
-                          {}
-                          variables)))
+               :value (if (= type 4) convert_value value)}))
        ))
+
+(defn- transform-variable-map [variables]
+  (reduce
+    (fn [map {:keys [name type value]}]
+      (assoc map name {:type type :value (variable-value type value)}))
+    {}
+    variables)
+  )
 
 (defn- get-current-version []
   (let [param (get-variable-version)]
@@ -138,7 +132,8 @@
               (loop [lastVer nil]
                 (let [ver (get-current-version)]
                   (when (not= lastVer ver)
-                    (reset! variable-map (load-variables))
+                    (reset! variable-list (load-variables))
+                    (reset! variable-map (transform-variable-map @variable-list))
                     ;(log/info "load system variables success")
                     )
                   (Thread/sleep 10000)
@@ -155,7 +150,7 @@
       (if (< i (count sql))
         (let [c (nth sql i)]
           (cond
-            (re-matches #"\w" (str c))
+            (re-matches #"[\w\.\-]" (str c))
             (recur (inc i) start inVar parts)
 
             (true? inVar)
@@ -254,8 +249,8 @@
       (loop [i 0 start 0 result ""]
         (if (< i (count parts))
           (let [part (parts i) ; value start end
-                variable (@variable-map (:value (parts i))) ; type value
-                last-part-sql (subs sql start (:start (parts i)))
+                variable (@variable-map (:value part)) ; type value
+                last-part-sql (subs sql start (:start part))
                 ]
             (if (nil? variable)
               (recur (inc i) (:end part) (str result last-part-sql "$" (:value part)))
@@ -324,11 +319,12 @@
 
 (defn -main
   [& args]
-  (reset! variable-map (load-variables))
+  (reset! variable-list (load-variables))
+  (reset! variable-map (transform-variable-map @variable-list))
   ;(println @variable-map)
   (println (substitute-sql-parameters "select * from test where sip = {{sip}} or sip = $num_test"))
   ;(println (find-variables "select * from test where ip = $ip_test"))
   ;(println (find-key "select * from test where ip = $ip_test" {:start 30}))
-  (println (get-variable-version))
+  ;(println (get-variable-version))
   (println "ok")
   )

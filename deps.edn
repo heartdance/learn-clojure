@@ -11,5 +11,6 @@
   ring/ring-jetty-adapter                   {:mvn/version "1.12.0"              ; Jetty adapter
                                              :exclusions [org.eclipse.jetty/jetty-server
                                                           org.eclipse.jetty.websocket/websocket-jetty-server]}
+  cheshire/cheshire                         {:mvn/version "5.12.0"}
   }
  }
