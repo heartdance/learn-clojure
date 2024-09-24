@@ -1,0 +1,19 @@
+{
+  "name": "http",
+  "columns": [
+    {
+      "name": "_id",
+      "type": "String"
+    },
+    {
+      "name": "protocols",
+      "type": "String",
+      "array": true
+    },
+    {
+      "name": "http.method",
+      "type": "String",
+      "array": true
+    }
+  ]
+}
