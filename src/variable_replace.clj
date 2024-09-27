@@ -82,11 +82,19 @@
         )
       )
 
-    (or (= type :text) (= type :regex))
-    (let [values (split-value value false)]
+    (= type :text)
+    (let [values (split-value value)]
       (if (= (count values) 1)
         (str "'" value "'")
         (str (str/join "," (map #(str "'" % "'") values)))
+        )
+      )
+
+    (= type :regex)
+    (let [values (split-value value false)]
+      (if (= (count values) 1)
+        (str "'" value "'")
+        (str (str/join "\n" (map #(str "'" % "'") values)))
         )
       )
 
@@ -106,7 +114,7 @@
 (defn- load-variables []
   (->> 200
        (list-variables)
-       (filter (fn [{:keys [type]}] (and (> type 0) (<= type 6))))
+       (filter (fn [{:keys [type]}] (and (> type 0) (<= type 6) (not= type 4))))
        (map (fn [{:keys [name type value convert_value]}]
               {:name name
                :type (type-name type)
@@ -132,26 +140,6 @@
     )
   )
 
-(defn load-array-fields [path]
-  (let [dir (io/file path)]
-    (reduce
-      (fn [fields1 fields2]
-        (into fields1 fields2))
-      #{}
-      (for [file (file-seq dir)
-            :when (.endsWith (.getName file) ".json")]
-        (->> file
-             (.getPath)
-             (slurp)
-             (json/parse-string)
-             (#(% "columns"))
-             (filter #(% "array"))
-             (map #(% "name"))
-             (map #(str/replace % \. \_)))
-        ))
-    )
-  )
-
 (defn reload-variables [last-ver]
   (try
     (let [ver (get-current-version)]
@@ -162,9 +150,35 @@
         )
       ver)
     (catch Exception e
-      (println "load variables exception: " (.getMessage e)))
+      (println "load variables exception: " (.getMessage e))
+      last-ver)
     )
-  last-ver
+  )
+
+(defn load-array-fields [path]
+  (let [dir (io/file path)]
+    (if (.isDirectory dir)
+      (reduce
+        (fn [result fields]
+          (into result fields))
+        #{}
+        (for [file (file-seq dir)
+              :when (.endsWith (.getName file) ".json")]
+          (->> file
+               (.getPath)
+               (slurp)
+               (json/parse-string)
+               (#(% "columns"))
+               (filter #(% "array"))
+               (map #(% "name"))
+               (map #(str/replace % \. \_)))
+          ))
+      (do
+        (println "schema dir not found: " path)
+        #{}
+        )
+      )
+    )
   )
 
 (defn init []
@@ -288,7 +302,7 @@
 
 (defn- wrapper-ipv4 [ips]
   (->> ips
-       (map #(str "IPv4(" % ")"))
+       (map #(str "toIPv4(" % ")"))
        (str/join ","))
   )
 
@@ -360,7 +374,7 @@
                                       "("
                                       (:key expr)
                                       ", "
-                                      (str "IPv4(" (:value variable) ")")
+                                      (str "toIPv4(" (:value variable) ")")
                                       ")"))
                           (recur (inc i) (:end part)
                                  (str result
@@ -428,16 +442,16 @@
                 (let [expr (find-key sql part)]
                   (if (nil? expr)
                     (recur (inc i) (:end part) (str result last-part-sql (:value variable)))
-                    (if (str/includes? (:value variable) ",")
+                    (if (str/includes? (:value variable) "\n")
                       (if (contains? @array-fields (:key expr))
                         (recur (inc i) (:end part)
                                (str result
                                     (subs sql start (:start expr))
-                                    (create-regex-list-expr (:key expr) (:op expr) (str/split (:value variable) #",") true)))
+                                    (create-regex-list-expr (:key expr) (:op expr) (str/split (:value variable) #"\n") true)))
                         (recur (inc i) (:end part)
                                (str result
                                     (subs sql start (:start expr))
-                                    (create-regex-list-expr (:key expr) (:op expr) (str/split (:value variable) #",") false)))
+                                    (create-regex-list-expr (:key expr) (:op expr) (str/split (:value variable) #"\n") false)))
                         )
                       (if (contains? @array-fields (:key expr))
                         (recur (inc i) (:end part)
@@ -478,7 +492,8 @@
 (defn -main
   [& args]
   (reload-variables "")
+  (println @variable-map)
   (reset! array-fields (load-array-fields "data"))
-  (println (substitute-sql-parameters "select * from test where dns_aip = $regex_test2"))
+  (println (substitute-sql-parameters "select * from test where dns_aip = $str_test2"))
   (println "ok")
   )
