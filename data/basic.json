@@ -1,0 +1,19 @@
+{
+  "name": "basic  ",
+  "columns": [
+    {
+      "name": "_id",
+      "type": "String"
+    },
+    {
+      "name": "protocols",
+      "type": "String",
+      "array": true
+    },
+    {
+      "name": "dns.aip",
+      "type": "IPv4",
+      "array": true
+    }
+  ]
+}
