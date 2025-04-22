@@ -21,7 +21,7 @@
   )
 
 (defn selectByHoney []
-  (println "select by next jdbc")
+  (println "select by honey")
   (let [my-datasource (jdbc/get-datasource db-spec)]
     (with-open [connection (jdbc/get-connection my-datasource)]
       (jdbc/execute! connection (sql/format {:select [:*]
